@@ -22,16 +22,16 @@ export class GameScene extends Phaser.Scene {
     // Load the spritesheet atlas
     this.load.atlas('sprites', 'game_spritesheet.png', 'game_spritesheet.json');
     // Load split sound
-    this.load.audio('goopyslime', '/goopyslime.mp3');
+      this.load.audio('goopyslime', 'goopyslime.mp3');
     // Load death/game over sounds
-    this.load.audio('playerdeath', '/playerdeath.mp3');
-    this.load.audio('gameover', '/gameover.mp3');
+      this.load.audio('playerdeath', 'playerdeath.mp3');
+      this.load.audio('gameover', 'gameover.mp3');
     // Load dash sound
-    this.load.audio('chainsaw', '/chainsaw.mp3');
+      this.load.audio('chainsaw', 'chainsaw.mp3');
     // Load background music
-    this.load.audio('bg-music', '/bg-music.mp3');
+      this.load.audio('bg-music', 'bg-music.mp3');
     // Load player atlas
-    this.load.atlas('player', '/player_spritesheet.png', '/player_spritesheet.json');
+      this.load.atlas('player', 'player_spritesheet.png', 'player_spritesheet.json');
   }
 
   create() {
