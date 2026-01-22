@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Serpent in the Paradise</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <style>
     body {
       margin: 0;
@@ -13,7 +16,7 @@
       align-items: center;
       min-height: 100vh;
       background: #222;
-      font-family: monospace;
+      font-family: 'Press Start 2P', monospace;
     }
     #game-container {
       display: flex;
@@ -21,13 +24,81 @@
       align-items: center;
       gap: 20px;
     }
+    #crt-toggle {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      z-index: 10000;
+      padding: 10px 14px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 10px;
+      background: #111;
+      color: #0f0;
+      border: 2px solid #0f0;
+      cursor: pointer;
+      text-transform: uppercase;
+    }
+    #crt-toggle:active {
+      transform: translateY(1px);
+    }
+    .crt-off {
+      display: none;
+    }
     canvas {
-      border: 2px solid #555;
+      border: none;
+      border-radius: 8px;
+    }
+
+    /* CRT overlay */
+    #crt-overlay {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9999;
+      mix-blend-mode: multiply;
+      background:
+        radial-gradient(ellipse at center, rgba(255, 255, 255, 0.06) 0%, rgba(0, 0, 0, 0.45) 70%),
+        repeating-linear-gradient(
+          0deg,
+          rgba(255, 255, 255, 0.07),
+          rgba(255, 255, 255, 0.07) 3px,
+          rgba(0, 0, 0, 0.14) 4px,
+          rgba(0, 0, 0, 0.14) 6px
+        );
+      box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.55);
+      animation: crt-flicker 2s infinite;
+    }
+
+    @keyframes crt-flicker {
+      0%, 100% { opacity: 0.9; }
+      20% { opacity: 0.86; }
+      40% { opacity: 0.92; }
+      60% { opacity: 0.85; }
+      80% { opacity: 0.9; }
     }
   </style>
 </head>
 <body>
   <div id="game-container"></div>
+  <button id="crt-toggle" type="button">CRT On</button>
+  <div id="crt-overlay"></div>
   <script type="module" src="/src/main.js"></script>
+  <script>
+    const crtOverlay = document.getElementById('crt-overlay');
+    const crtToggle = document.getElementById('crt-toggle');
+    let crtEnabled = true;
+
+    const updateLabel = () => {
+      crtToggle.textContent = crtEnabled ? 'CRT On' : 'CRT Off';
+    };
+
+    crtToggle.addEventListener('click', () => {
+      crtEnabled = !crtEnabled;
+      crtOverlay.classList.toggle('crt-off', !crtEnabled);
+      updateLabel();
+    });
+
+    updateLabel();
+  </script>
 </body>
 </html>

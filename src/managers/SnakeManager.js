@@ -104,6 +104,14 @@ export class SnakeManager {
     }
   }
 
+  hideAll() {
+    for (const snake of this.snakes) {
+      for (const sprite of snake.sprites) {
+        sprite.setVisible(false);
+      }
+    }
+  }
+
   destroy() {
     for (const snake of this.snakes) {
       snake.destroy();

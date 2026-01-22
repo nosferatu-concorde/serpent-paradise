@@ -10,6 +10,16 @@ const config = {
   backgroundColor: COLORS.BACKGROUND,
   scene: [GameScene],
   pixelArt: true,
+  scale: {
+    mode: Phaser.Scale.NONE,
+    zoom: 2,
+    autoCenter: Phaser.Scale.CENTER_BOTH
+  },
+  render: {
+    pixelArt: true,
+    antialias: false,
+    roundPixels: true
+  },
   physics: {
     default: false
   }

@@ -1,19 +1,18 @@
-import { GRID, COLORS, DIRECTIONS } from '../config.js';
+import { GRID, DIRECTIONS } from '../config.js';
 
 export class Snake {
   constructor(scene, startX, startY, length, direction = DIRECTIONS.RIGHT) {
     this.scene = scene;
     this.segments = [];
+    this.sprites = []; // Array of sprites for each segment
     this.direction = direction;
     this.alive = true;
-    this.graphics = null;
-    this.pendingGrowth = 0; // Number of segments to add
-    this.blinking = false; // Blink effect during split
-    this.blinkUntil = 0; // Timestamp when blinking should stop
+    this.pendingGrowth = 0;
+    this.blinking = false;
+    this.blinkUntil = 0;
 
     // Create initial segments
     this.initializeSegments(startX, startY, length, direction);
-    this.createGraphics();
   }
 
   initializeSegments(startX, startY, length, direction) {
@@ -24,10 +23,76 @@ export class Snake {
         y: startY - (direction.y * i)
       });
     }
+    this.createSprites();
   }
 
-  createGraphics() {
-    this.graphics = this.scene.add.graphics();
+  createSprites() {
+    // Clear existing sprites
+    this.clearSprites();
+
+    // Create a sprite for each segment
+    for (let i = 0; i < this.segments.length; i++) {
+      const segment = this.segments[i];
+      const frameName = this.getFrameForSegment(i);
+
+      const sprite = this.scene.add.sprite(
+        segment.x * GRID.TILE_SIZE + GRID.TILE_SIZE / 2,
+        segment.y * GRID.TILE_SIZE + GRID.TILE_SIZE / 2,
+        'sprites',
+        frameName
+      );
+      this.sprites.push(sprite);
+    }
+  }
+
+  getFrameForSegment(index) {
+    if (index === 0) {
+      return 'game_sprites_1.png'; // Head
+    } else if (index === this.segments.length - 1) {
+      return 'game_sprites_3.png'; // Tail
+    } else {
+      return 'game_sprites_2.png'; // Body
+    }
+  }
+
+  // Get rotation for a segment based on direction
+  // LEFT: 0, RIGHT: π, UP: π/2, DOWN: -π/2
+  getRotationForDirection(dx, dy) {
+    if (dx === -1 && dy === 0) return 0;           // LEFT
+    if (dx === 1 && dy === 0) return Math.PI;      // RIGHT
+    if (dx === 0 && dy === -1) return Math.PI / 2;  // UP
+    if (dx === 0 && dy === 1) return -Math.PI / 2;  // DOWN
+    return 0;
+  }
+
+  // Get direction from segment at index to the segment ahead (toward head)
+  getSegmentDirection(index) {
+    if (index === 0) {
+      // Head uses snake's current direction
+      return { dx: this.direction.x, dy: this.direction.y };
+    }
+
+    // Body/tail: direction from this segment to the one ahead (closer to head)
+    const current = this.segments[index];
+    const ahead = this.segments[index - 1];
+
+    let dx = ahead.x - current.x;
+    let dy = ahead.y - current.y;
+
+    // Handle grid wrapping
+    if (dx > 1) dx = -1;
+    if (dx < -1) dx = 1;
+    if (dy > 1) dy = -1;
+    if (dy < -1) dy = 1;
+
+    return { dx, dy };
+  }
+
+  clearSprites() {
+    for (const sprite of this.sprites) {
+      sprite.destroy();
+    }
+    this.sprites = [];
   }
 
   getHead() {
@@ -39,19 +104,14 @@ export class Snake {
   }
 
   getBody() {
-    // Return body segments (excluding head and tail)
     return this.segments.slice(1, -1);
   }
 
-  // AI: Find direction toward a target position
   findDirectionToTarget(targetX, targetY) {
     const head = this.getHead();
-
-    // Calculate direction toward target
     const dx = targetX - head.x;
     const dy = targetY - head.y;
 
-    // Handle wrapping - choose shorter path
     let wrapDx = dx;
     let wrapDy = dy;
 
@@ -62,32 +122,28 @@ export class Snake {
       wrapDy = dy > 0 ? dy - GRID.HEIGHT : dy + GRID.HEIGHT;
     }
 
-    // Prefer horizontal or vertical movement based on distance
     if (Math.abs(wrapDx) > Math.abs(wrapDy)) {
       return wrapDx > 0 ? DIRECTIONS.RIGHT : DIRECTIONS.LEFT;
     } else if (Math.abs(wrapDy) > Math.abs(wrapDx)) {
       return wrapDy > 0 ? DIRECTIONS.DOWN : DIRECTIONS.UP;
     }
 
-    // Equal distance, prefer current direction
     return this.direction;
   }
 
-  // AI: Find direction toward nearest food
   findDirectionToFood(foodPositions) {
     if (!foodPositions || foodPositions.length === 0) {
-      return this.direction; // Keep current direction if no food
+      return this.direction;
     }
 
     const head = this.getHead();
     let nearestFood = null;
     let minDistance = Infinity;
 
-    // Find nearest food
     for (const food of foodPositions) {
       const dx = food.x - head.x;
       const dy = food.y - head.y;
-      const distance = Math.abs(dx) + Math.abs(dy); // Manhattan distance
+      const distance = Math.abs(dx) + Math.abs(dy);
 
       if (distance < minDistance) {
         minDistance = distance;
@@ -100,9 +156,7 @@ export class Snake {
     return this.findDirectionToTarget(nearestFood.x, nearestFood.y);
   }
 
-  // Check if position collides with own body
   collidesWithSelf(x, y) {
-    // Check all segments except the head (index 0)
     for (let i = 0; i < this.segments.length; i++) {
       const segment = this.segments[i];
       if (segment.x === x && segment.y === y) {
@@ -112,22 +166,18 @@ export class Snake {
     return false;
   }
 
-  // Check if position is too close to other snakes (on top or adjacent)
   isPositionTooClose(x, y, otherSnakes) {
     for (const snake of otherSnakes) {
       if (snake === this || !snake.alive) continue;
 
       for (const segment of snake.segments) {
-        // Check if on top of segment
         if (segment.x === x && segment.y === y) {
           return true;
         }
 
-        // Check if adjacent (1 tile away in cardinal or diagonal directions)
         const dx = Math.abs(segment.x - x);
         const dy = Math.abs(segment.y - y);
 
-        // Handle wrapping for distance calculation
         const wrapDx = Math.min(dx, GRID.WIDTH - dx);
         const wrapDy = Math.min(dy, GRID.HEIGHT - dy);
 
@@ -139,7 +189,6 @@ export class Snake {
     return false;
   }
 
-  // Find a valid direction that avoids other snakes and self
   findValidDirection(targetPosition, otherSnakes) {
     const head = this.getHead();
     const possibleDirections = [
@@ -149,7 +198,6 @@ export class Snake {
       DIRECTIONS.RIGHT
     ];
 
-    // First, try the target-seeking direction
     let targetDirection;
     if (targetPosition) {
       targetDirection = this.findDirectionToTarget(targetPosition.x, targetPosition.y);
@@ -167,7 +215,6 @@ export class Snake {
       return targetDirection;
     }
 
-    // If target direction is blocked, try other directions
     for (const dir of possibleDirections) {
       const testPos = {
         x: (head.x + dir.x + GRID.WIDTH) % GRID.WIDTH,
@@ -180,41 +227,41 @@ export class Snake {
       }
     }
 
-    // If all directions blocked, return current direction (shouldn't happen often)
     return this.direction;
   }
 
   move(targetPosition = null, otherSnakes = []) {
     if (!this.alive || this.segments.length === 0) return;
 
-    // Update direction based on target-seeking AI with collision avoidance
     this.direction = this.findValidDirection(targetPosition, otherSnakes);
 
-    // Calculate new head position
     const head = this.getHead();
     const newHead = {
       x: head.x + this.direction.x,
       y: head.y + this.direction.y
     };
 
-    // Handle wrapping
     if (newHead.x < 0) newHead.x = GRID.WIDTH - 1;
     if (newHead.x >= GRID.WIDTH) newHead.x = 0;
     if (newHead.y < 0) newHead.y = GRID.HEIGHT - 1;
     if (newHead.y >= GRID.HEIGHT) newHead.y = 0;
 
-    // Add new head
     this.segments.unshift(newHead);
 
-    // Handle growth
     if (this.pendingGrowth > 0) {
       this.pendingGrowth--;
+      // Add a new sprite for the grown segment
+      const newSprite = this.scene.add.sprite(
+        newHead.x * GRID.TILE_SIZE + GRID.TILE_SIZE / 2,
+        newHead.y * GRID.TILE_SIZE + GRID.TILE_SIZE / 2,
+        'sprites',
+        'game_sprites_1.png'
+      );
+      this.sprites.unshift(newSprite);
     } else {
-      // Remove tail if not growing
       this.segments.pop();
     }
 
-    // Check if snake should die (only head remaining)
     if (this.segments.length <= 1) {
       this.alive = false;
     }
@@ -224,20 +271,17 @@ export class Snake {
     this.pendingGrowth++;
   }
 
-  // Split snake at given segment index
-  // Returns new snake or null
   splitAt(segmentIndex) {
     if (segmentIndex <= 0 || segmentIndex >= this.segments.length - 1) {
-      return null; // Can't split at head or tail
+      return null;
     }
 
-    // Create new snake from split point to tail
     const newSnakeSegments = this.segments.slice(segmentIndex);
-
-    // Keep this snake from head to split point (exclusive)
     this.segments = this.segments.slice(0, segmentIndex);
 
-    // Create new snake with opposite direction (tail moves away from head)
+    // Update sprites - destroy and recreate for both snakes
+    this.createSprites();
+
     const oppositeDirection = {
       x: -this.direction.x,
       y: -this.direction.y
@@ -246,28 +290,29 @@ export class Snake {
     const newSnake = new Snake(this.scene, 0, 0, 0, oppositeDirection);
     newSnake.segments = newSnakeSegments;
     newSnake.direction = oppositeDirection;
+    newSnake.createSprites();
 
-    // Check if either snake should die
     if (this.segments.length <= 1) this.alive = false;
     if (newSnake.segments.length <= 1) newSnake.alive = false;
 
     return newSnake;
   }
 
-  // Remove tail segment (damage)
   shrink() {
     if (this.segments.length > 1) {
       this.segments.pop();
+      // Remove the tail sprite
+      if (this.sprites.length > 0) {
+        const tailSprite = this.sprites.pop();
+        tailSprite.destroy();
+      }
     }
 
-    // Check if snake should die
     if (this.segments.length <= 1) {
       this.alive = false;
     }
   }
 
-  // Check if position matches any segment
-  // Returns segment type: 'head', 'body', 'tail', or null
   checkCollision(x, y) {
     for (let i = 0; i < this.segments.length; i++) {
       const segment = this.segments[i];
@@ -283,53 +328,42 @@ export class Snake {
   render() {
     if (!this.alive) return;
 
-    this.graphics.clear();
-
-    // Check if blinking and should be visible this frame
     const now = this.scene.time.now;
-    if (this.blinking && now < this.blinkUntil) {
-      // Blink every 150ms (on for 150ms, off for 150ms)
-      const blinkCycle = Math.floor(now / 150) % 2;
-      if (blinkCycle === 0) {
-        // Don't render (invisible part of blink)
-        return;
-      }
-    } else if (now >= this.blinkUntil) {
-      // Stop blinking
-      this.blinking = false;
-    }
+    const isVisible = !(this.blinking && now < this.blinkUntil && Math.floor(now / 150) % 2 === 0);
 
+    // Update sprite positions, rotation, and visibility
     for (let i = 0; i < this.segments.length; i++) {
       const segment = this.segments[i];
-      let color;
 
-      if (i === 0) {
-        color = COLORS.SNAKE_HEAD;
-      } else if (i === this.segments.length - 1) {
-        color = COLORS.SNAKE_TAIL;
-      } else {
-        color = COLORS.SNAKE_BODY;
+      if (i < this.sprites.length) {
+        const sprite = this.sprites[i];
+        sprite.setPosition(
+          segment.x * GRID.TILE_SIZE + GRID.TILE_SIZE / 2,
+          segment.y * GRID.TILE_SIZE + GRID.TILE_SIZE / 2
+        );
+        sprite.setVisible(isVisible);
+
+        // Update frame based on position
+        const frameName = this.getFrameForSegment(i);
+        sprite.setFrame(frameName);
+
+        // Update rotation based on direction
+        const { dx, dy } = this.getSegmentDirection(i);
+        sprite.setRotation(this.getRotationForDirection(dx, dy));
       }
+    }
 
-      this.graphics.fillStyle(color, 1);
-      this.graphics.fillRect(
-        segment.x * GRID.TILE_SIZE,
-        segment.y * GRID.TILE_SIZE,
-        GRID.TILE_SIZE,
-        GRID.TILE_SIZE
-      );
+    if (now >= this.blinkUntil) {
+      this.blinking = false;
     }
   }
 
-  // Start blinking effect for a duration
   startBlinking(duration) {
     this.blinking = true;
     this.blinkUntil = this.scene.time.now + duration;
   }
 
   destroy() {
-    if (this.graphics) {
-      this.graphics.destroy();
-    }
+    this.clearSprites();
   }
 }

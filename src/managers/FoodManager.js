@@ -123,4 +123,12 @@ export class FoodManager {
     }
     this.foods = [];
   }
+
+  hideAll() {
+    for (const food of this.foods) {
+      if (food.sprite) {
+        food.sprite.setVisible(false);
+      }
+    }
+  }
 }

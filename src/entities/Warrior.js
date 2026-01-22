@@ -1,4 +1,4 @@
-import { GRID, COLORS, DIRECTIONS } from '../config.js';
+import { GRID, DIRECTIONS } from '../config.js';
 
 export class Warrior {
   constructor(scene, x, y) {
@@ -7,19 +7,42 @@ export class Warrior {
     this.y = y;
     this.direction = DIRECTIONS.NONE;
     this.nextDirection = DIRECTIONS.NONE;
-    this.graphics = null;
+    this.sprite = null;
     this.dashPending = false;
-    this.dashTrail = [];
-    this.dashTrailFrames = 0; // How many frames to show trail
-    this.createGraphics();
+    this.dashTrail = []; // Array of trail sprites
+    this.dashTrailFrames = 0;
+    this.isDashingThisStep = false;
+    this.createSprite();
   }
 
-  createGraphics() {
-    this.graphics = this.scene.add.graphics();
+  createSprite() {
+    // Create animation once
+    if (!this.scene.anims.exists('player_walk')) {
+      this.scene.anims.create({
+        key: 'player_walk',
+        frames: this.scene.anims.generateFrameNames('player', {
+          start: 0,
+          end: 1,
+          zeroPad: 4,
+          prefix: 'frame',
+          suffix: '.png'
+        }),
+        frameRate: 6,
+        repeat: -1
+      });
+    }
+
+    this.sprite = this.scene.add.sprite(
+      this.x * GRID.TILE_SIZE + GRID.TILE_SIZE / 2,
+      this.y * GRID.TILE_SIZE + GRID.TILE_SIZE / 2,
+      'player',
+      'frame0000.png'
+    );
+    this.sprite.play('player_walk');
+    this.sprite.setScale(2);
   }
 
   setDirection(direction) {
-    // Prevent 180-degree reversals (though warrior can technically reverse)
     this.nextDirection = direction;
   }
 
@@ -29,31 +52,38 @@ export class Warrior {
       this.direction = this.nextDirection;
     }
 
+    // Flip sprite when moving left
+    if (this.sprite) {
+      if (this.direction.x < 0) {
+        this.sprite.setFlipX(true);
+      } else if (this.direction.x > 0) {
+        this.sprite.setFlipX(false);
+      }
+    }
+
     // Determine how many tiles to move (1 for normal, 2 for dash)
+    this.isDashingThisStep = this.dashPending;
     const moveDistance = this.dashPending ? 2 : 1;
 
     // If dashing, calculate trail positions
     if (this.dashPending) {
-      this.dashTrail = [];
+      // Clear old trail sprites
+      this.clearTrail();
 
       // Starting position (tail)
-      this.dashTrail.push({ x: this.x, y: this.y, opacity: 0.4 });
+      const startX = this.x;
+      const startY = this.y;
+      this.addTrailSprite(startX, startY, 0.4);
 
       // Middle position
       const midX = (this.x + this.direction.x + GRID.WIDTH) % GRID.WIDTH;
       const midY = (this.y + this.direction.y + GRID.HEIGHT) % GRID.HEIGHT;
-      this.dashTrail.push({ x: midX, y: midY, opacity: 0.7 });
+      this.addTrailSprite(midX, midY, 0.7);
 
-      // Final position (head - current position after move, full opacity)
-      const finalX = (this.x + this.direction.x * 2 + GRID.WIDTH) % GRID.WIDTH;
-      const finalY = (this.y + this.direction.y * 2 + GRID.HEIGHT) % GRID.HEIGHT;
-      this.dashTrail.push({ x: finalX, y: finalY, opacity: 1.0 });
-
-      // Show trail for longer (render happens 60fps, so 15 frames = 250ms)
       this.dashTrailFrames = 15;
     }
 
-    this.dashPending = false; // Reset dash flag
+    this.dashPending = false;
 
     // Move in current direction
     this.x += this.direction.x * moveDistance;
@@ -66,9 +96,34 @@ export class Warrior {
     if (this.y >= GRID.HEIGHT) this.y = this.y % GRID.HEIGHT;
   }
 
-  // Trigger a dash attack (moves 2 tiles)
+  addTrailSprite(x, y, opacity) {
+    const trailSprite = this.scene.add.sprite(
+      x * GRID.TILE_SIZE + GRID.TILE_SIZE / 2,
+      y * GRID.TILE_SIZE + GRID.TILE_SIZE / 2,
+      'player',
+      'frame0000.png'
+    );
+    trailSprite.setScale(2);
+    if (this.sprite) {
+      trailSprite.setFlipX(this.sprite.flipX);
+    }
+    trailSprite.setAlpha(opacity);
+    this.dashTrail.push(trailSprite);
+  }
+
+  clearTrail() {
+    for (const sprite of this.dashTrail) {
+      sprite.destroy();
+    }
+    this.dashTrail = [];
+  }
+
   dash() {
     this.dashPending = true;
+  }
+
+  isDashingActive() {
+    return this.isDashingThisStep;
   }
 
   getPosition() {
@@ -76,36 +131,32 @@ export class Warrior {
   }
 
   render() {
-    this.graphics.clear();
+    // Update sprite position
+    this.sprite.setPosition(
+      this.x * GRID.TILE_SIZE + GRID.TILE_SIZE / 2,
+      this.y * GRID.TILE_SIZE + GRID.TILE_SIZE / 2
+    );
 
-    // If dashing, render trail
-    if (this.dashTrailFrames > 0 && this.dashTrail.length > 0) {
-      for (const segment of this.dashTrail) {
-        this.graphics.fillStyle(COLORS.WARRIOR, segment.opacity);
-        this.graphics.fillRect(
-          segment.x * GRID.TILE_SIZE,
-          segment.y * GRID.TILE_SIZE,
-          GRID.TILE_SIZE,
-          GRID.TILE_SIZE
-        );
-      }
-      // Decrement frame counter
+    // Handle dash trail fade
+    if (this.dashTrailFrames > 0) {
       this.dashTrailFrames--;
-    } else {
-      // Normal rendering
-      this.graphics.fillStyle(COLORS.WARRIOR, 1);
-      this.graphics.fillRect(
-        this.x * GRID.TILE_SIZE,
-        this.y * GRID.TILE_SIZE,
-        GRID.TILE_SIZE,
-        GRID.TILE_SIZE
-      );
+      if (this.dashTrailFrames <= 0) {
+        this.clearTrail();
+      }
     }
   }
 
   destroy() {
-    if (this.graphics) {
-      this.graphics.destroy();
+    if (this.sprite) {
+      this.sprite.destroy();
     }
+    this.clearTrail();
+  }
+
+  hide() {
+    if (this.sprite) {
+      this.sprite.setVisible(false);
+    }
+    this.clearTrail();
   }
 }

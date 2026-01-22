@@ -1,7 +1,7 @@
 // Game configuration constants
 export const GRID = {
-  WIDTH: 32,
-  HEIGHT: 24,
+  WIDTH: 24,
+  HEIGHT: 18,
   TILE_SIZE: 32
 };
 
@@ -21,12 +21,12 @@ export const COLORS = {
 };
 
 export const GAME = {
-  FOOD_MAX: 2,
-  FOOD_SPAWN_INTERVAL: 4000, // milliseconds
+  FOOD_MAX: 5,
+  FOOD_SPAWN_INTERVAL: 2000, // milliseconds
   MOVE_DELAY: 300, // milliseconds between moves (affects speed)
   SNAKE_INITIAL_LENGTH: 5,
-  WARRIOR_START_X: 16,
-  WARRIOR_START_Y: 12
+  WARRIOR_START_X: 12,
+  WARRIOR_START_Y: 9
 };
 
 export const DIRECTIONS = {

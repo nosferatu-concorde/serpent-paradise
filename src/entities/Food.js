@@ -1,4 +1,4 @@
-import { GRID, COLORS } from '../config.js';
+import { GRID } from '../config.js';
 
 export class Food {
   constructor(scene, x, y) {
@@ -6,12 +6,18 @@ export class Food {
     this.x = x;
     this.y = y;
     this.eaten = false;
-    this.graphics = null;
-    this.createGraphics();
+    this.sprite = null;
+    this.createSprite();
   }
 
-  createGraphics() {
-    this.graphics = this.scene.add.graphics();
+  createSprite() {
+    this.sprite = this.scene.add.sprite(
+      this.x * GRID.TILE_SIZE + GRID.TILE_SIZE / 2,
+      this.y * GRID.TILE_SIZE + GRID.TILE_SIZE / 2,
+      'sprites',
+      'game_sprites_5.png'
+    );
+    this.sprite.setScale(0.5); // halve to offset global zoom and keep food tile-sized
   }
 
   getPosition() {
@@ -20,25 +26,20 @@ export class Food {
 
   markEaten() {
     this.eaten = true;
+    if (this.sprite) {
+      this.sprite.setVisible(false);
+    }
   }
 
   render() {
     if (this.eaten) return;
 
-    this.graphics.clear();
-    this.graphics.fillStyle(COLORS.FOOD, 1);
-
-    // Draw as a circle in the center of the tile
-    const centerX = this.x * GRID.TILE_SIZE + GRID.TILE_SIZE / 2;
-    const centerY = this.y * GRID.TILE_SIZE + GRID.TILE_SIZE / 2;
-    const radius = GRID.TILE_SIZE / 3;
-
-    this.graphics.fillCircle(centerX, centerY, radius);
+    // Sprite position is already set on creation, nothing to update
   }
 
   destroy() {
-    if (this.graphics) {
-      this.graphics.destroy();
+    if (this.sprite) {
+      this.sprite.destroy();
     }
   }
 }
